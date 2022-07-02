@@ -7,8 +7,21 @@ TM1637 tm1637(CLK,DIO);
 
 #define ENCODER_CLK 2
 #define ENCODER_DT  3
+#define BUTTON 7
 
-void disp(int cur){
+int lastClk = HIGH;
+int CurThrottle = 0;
+int mode = 0;
+
+#define MODE_CNT 3
+char opt[MODE_CNT][4] = {
+  'Z','Q',',','.',
+  'A','D','A','D',
+  'A','D',';','\'',
+};
+
+void disp(){
+  int cur = CurThrottle;
   if (cur < 0){
     tm1637.display(0,11);
     cur = -cur;
@@ -16,7 +29,17 @@ void disp(int cur){
     tm1637.display(0,15);
   }
   tm1637.display(1,cur);
+  tm1637.display(3,mode);
 }
+
+void mode_change(){
+  mode = (mode+1) % MODE_CNT;
+  //Serial.print("MODE ");
+  //Serial.println(mode);
+  disp();
+  delay(100);
+}
+
 void setup() {
   Serial.begin(115200);
   pinMode(ENCODER_CLK, INPUT);
@@ -24,12 +47,13 @@ void setup() {
 
   tm1637.init();
   tm1637.set(BRIGHT_TYPICAL);//BRIGHT_TYPICAL = 2,BRIGHT_DARKEST = 0,BRIGHTEST = 7;
+  disp();
 
-  disp(0);
+  pinMode(BUTTON,INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(BUTTON),mode_change,FALLING);
 }
 
-int lastClk = HIGH;
-int CurThrottle = 0;
+
 
 #define MAX_LEVELS 9
 
@@ -44,14 +68,14 @@ void loop() {
       if (CurThrottle < MAX_LEVELS){
         
         if (CurThrottle >= 0){
-          Keyboard.press('Z');
+          Keyboard.press(opt[mode][0]);
           Keyboard.releaseAll();
         }else{
-          Keyboard.press(',');
+          Keyboard.press(opt[mode][2]);
           Keyboard.releaseAll();
         }
         CurThrottle++;
-        disp(CurThrottle);
+        disp();
       }
       delay(100);
     }
@@ -59,14 +83,14 @@ void loop() {
       //Serial.println("Rotated counterclockwise ⏪");
       if (CurThrottle > -1 * MAX_LEVELS){
         if (CurThrottle > 0){
-          Keyboard.press('Q');
+          Keyboard.press(opt[mode][1]);
           Keyboard.releaseAll();
         }else{
-          Keyboard.press('.');
+          Keyboard.press(opt[mode][3]);
           Keyboard.releaseAll();
         }
         CurThrottle--;
-        disp(CurThrottle);
+        disp();
       }
       delay(100);
     }
